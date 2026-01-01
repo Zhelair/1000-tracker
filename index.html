@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Счётчик для «Тысячи»</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="./supabase.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div>
+        <h1>Счётчик для игры «Тысяча»</h1>
+        <div class="muted">Комната • Правила • Счёт • Без споров 🙂</div>
+      </div>
+      <div class="pill" id="pillStatus">offline</div>
+    </header>
+
+    <!-- ROOM -->
+    <section class="card" id="viewRoom">
+      <h2>Комната</h2>
+      <div class="row">
+        <label class="field">
+          <span>Код комнаты</span>
+          <input id="roomCode" placeholder="например: table1" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>Вы — игрок</span>
+          <select id="playerSelect">
+            <option value="player_1">Игрок 1</option>
+            <option value="player_2">Игрок 2</option>
+            <option value="player_3">Игрок 3</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="row">
+        <button id="btnJoin" class="btn primary">Войти / Создать</button>
+        <button id="btnCopy" class="btn">Скопировать ссылку</button>
+      </div>
+
+      <div class="note">
+        Откройте эту же ссылку на 3 устройствах. Каждый выбирает своего игрока. Потом нажимаете «Согласен ✅», и правила закрепляются.
+      </div>
+
+      <details class="note" style="margin-top:10px;">
+        <summary>Если страница пустая / ничего не работает</summary>
+        <div class="muted" style="margin-top:8px;">
+          1) Проверьте <b>supabase.js</b> — вставлены URL и anon key.<br/>
+          2) В Supabase включен Realtime для таблиц rooms/players/rules/rounds/totals.<br/>
+          3) На сегодня можно отключить RLS (потом закрутим).
+        </div>
+      </details>
+    </section>
+
+    <!-- MAIN -->
+    <section class="grid" id="viewMain" style="display:none;">
+      <!-- RULES -->
+      <section class="card">
+        <div class="cardHead">
+          <h2>Правила</h2>
+          <div class="muted" id="roomMeta"></div>
+        </div>
+
+        <div class="rules">
+          <div class="rule">
+            <div>
+              <div class="rTitle">Округление</div>
+              <div class="muted">как считать «очки» у не-заказчиков</div>
+            </div>
+            <select id="ruleRounding">
+              <option value="none">Без округления</option>
+              <option value="to5">До 5</option>
+              <option value="to10_5up">До 10 (5 вверх)</option>
+            </select>
+          </div>
+
+          <div class="rule">
+            <div>
+              <div class="rTitle">Самосвал 555</div>
+              <div class="muted">если ровно 555 → 0</div>
+            </div>
+            <input type="checkbox" id="rule555" />
+          </div>
+
+          <div class="rule">
+            <div>
+              <div class="rTitle">Болты</div>
+              <div class="muted">0 взяток = болт; 3 болта → штраф</div>
+            </div>
+            <input type="checkbox" id="ruleBolts" />
+          </div>
+
+          <div class="rule">
+            <div>
+              <div class="rTitle">Штраф за 3 болта</div>
+              <div class="muted">обычно 120</div>
+            </div>
+            <input type="number" id="ruleBoltsPenalty" min="0" step="5" value="120" />
+          </div>
+        </div>
+
+        <div class="row">
+          <button id="btnSaveRules" class="btn">Сохранить правила</button>
+          <button id="btnAgree" class="btn primary">Согласен ✅</button>
+        </div>
+
+        <div class="note">
+          <div class="muted"><b>Важно:</b> MVP считает так: заказчик получает <b>+заказ</b> если сыграл, иначе <b>−заказ</b>. Остальные получают введённые «очки» (с округлением, если включено).</div>
+          <div class="muted" style="margin-top:6px;">Статус согласия: <span id="agreeStatus">—</span></div>
+          <div class="muted" style="margin-top:6px;">Замок: <span id="lockStatus">—</span></div>
+        </div>
+      </section>
+
+      <!-- SCORE -->
+      <section class="card">
+        <div class="cardHead">
+          <h2>Счёт</h2>
+          <div class="muted">до 1000</div>
+        </div>
+
+        <div class="scoreGrid">
+          <div class="scoreBox">
+            <div class="muted">Игрок 1</div>
+            <div class="scoreNum" id="s1">0</div>
+            <div class="muted small">болты: <span id="b1">0</span></div>
+          </div>
+          <div class="scoreBox">
+            <div class="muted">Игрок 2</div>
+            <div class="scoreNum" id="s2">0</div>
+            <div class="muted small">болты: <span id="b2">0</span></div>
+          </div>
+          <div class="scoreBox">
+            <div class="muted">Игрок 3</div>
+            <div class="scoreNum" id="s3">0</div>
+            <div class="muted small">болты: <span id="b3">0</span></div>
+          </div>
+        </div>
+
+        <hr/>
+
+        <h3>Добавить кон</h3>
+        <div class="row">
+          <label class="field">
+            <span>Заказчик</span>
+            <select id="bidder">
+              <option value="player_1">Игрок 1</option>
+              <option value="player_2">Игрок 2</option>
+              <option value="player_3">Игрок 3</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Заказ (кратно 5)</span>
+            <input id="bid" type="number" min="80" step="5" value="100" />
+          </label>
+
+          <label class="field">
+            <span>Результат</span>
+            <select id="made">
+              <option value="made">Сыграл</option>
+              <option value="failed">Не сыграл</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="row">
+          <label class="field">
+            <span>Очки: Игрок 1</span>
+            <input id="p1" type="number" min="-500" step="1" value="0" />
+          </label>
+          <label class="field">
+            <span>Очки: Игрок 2</span>
+            <input id="p2" type="number" min="-500" step="1" value="0" />
+          </label>
+          <label class="field">
+            <span>Очки: Игрок 3</span>
+            <input id="p3" type="number" min="-500" step="1" value="0" />
+          </label>
+        </div>
+
+        <div class="row">
+          <label class="check"><input id="bolt1" type="checkbox" /> Болт Игрок 1 (0 взяток)</label>
+          <label class="check"><input id="bolt2" type="checkbox" /> Болт Игрок 2 (0 взяток)</label>
+          <label class="check"><input id="bolt3" type="checkbox" /> Болт Игрок 3 (0 взяток)</label>
+        </div>
+
+        <div class="row">
+          <button id="btnAddRound" class="btn primary">Записать кон</button>
+          <button id="btnUndo" class="btn danger">Отменить последний кон</button>
+        </div>
+
+        <details class="note">
+          <summary>История (последние 12)</summary>
+          <div id="history" class="history"></div>
+        </details>
+      </section>
+    </section>
+
+    <footer class="foot muted">
+      Сделано для семейных игр. Никаких аккаунтов. Просто счёт.
+    </footer>
+  </div>
+</body>
+</html>
