@@ -1,0 +1,10 @@
+body{margin:0;background:#0b0f14;color:#e7eef7;font-family:system-ui}
+.app{max-width:1000px;margin:auto;padding:16px}
+.logo{font-weight:900}
+.card{background:#121a24;border:1px solid #243447;border-radius:16px;padding:14px;margin-bottom:14px}
+.tabs{display:flex;gap:8px}
+.tabs button{padding:8px 12px;border-radius:999px;border:1px solid #243447;background:#121a24;color:#fff}
+.tabs button.active{background:#0b121b}
+.tab{display:none}
+.tab.active{display:block}
+.btn.primary{background:#1f4ed8}

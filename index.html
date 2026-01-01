@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>1000 Tracker</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="./supabase.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+<div class="app">
+<header class="topbar">
+  <div class="logo">1000</div>
+  <div>
+    <div class="title">Счётчик для «Тысячи»</div>
+    <div class="subtitle">Комнаты • Правила • Счёт • История</div>
+  </div>
+</header>
+
+<main id="home">
+  <section class="card hero">
+    <h1>Без споров. Просто счёт.</h1>
+    <p class="muted">Откройте комнату, договоритесь о правилах и играйте.</p>
+    <input id="roomCode" placeholder="код комнаты" />
+    <select id="player">
+      <option>Игрок 1</option>
+      <option>Игрок 2</option>
+      <option>Игрок 3</option>
+    </select>
+    <button class="btn primary">Войти / Создать</button>
+  </section>
+</main>
+
+<main id="app">
+<nav class="tabs">
+  <button class="active" data-tab="rules">Правила</button>
+  <button data-tab="score">Счёт</button>
+  <button data-tab="history">История</button>
+  <button data-tab="chart">График</button>
+</nav>
+
+<section id="rules" class="tab active">
+  <div class="card">
+    <h2>Правила «Тысячи» — справочник</h2>
+    <details open>
+      <summary>Цель игры</summary>
+      <p>Набрать 1000 очков.</p>
+      <small>Источник: Mail.ru, Wikipedia</small>
+    </details>
+    <details>
+      <summary>Очки карт</summary>
+      <p>Туз 11 • 10 = 10 • Король 4 • Дама 3 • Валет 2 • 9 = 0.</p>
+      <small>Источник: Wikipedia, Pagat</small>
+    </details>
+    <details>
+      <summary>Марьяжи</summary>
+      <p>♥100 ♦80 ♣60 ♠40</p>
+      <small>Источник: Pagat</small>
+    </details>
+    <details>
+      <summary>Заказ</summary>
+      <p>Сыграл → +заказ, не сыграл → −заказ.</p>
+      <small>Источник: Mail.ru</small>
+    </details>
+  </div>
+</section>
+
+<section id="score" class="tab">
+  <div class="card"><h2>Счёт</h2></div>
+</section>
+
+<section id="history" class="tab">
+  <div class="card"><h2>История</h2></div>
+</section>
+
+<section id="chart" class="tab">
+  <div class="card"><h2>График</h2></div>
+</section>
+</main>
+
+<footer class="footer muted">1000 Tracker</footer>
+</div>
+</body>
+</html>
