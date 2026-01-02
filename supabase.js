@@ -7,8 +7,8 @@
 
 (function () {
   // Preferred: edit these two lines
-  const EDIT_SUPABASE_URL = "PASTE_SUPABASE_URL_HERE";
-  const EDIT_SUPABASE_ANON_KEY = "PASTE_SUPABASE_ANON_KEY_HERE";
+const EDIT_SUPABASE_URL = "https://qcmyfmmbdrxqjkzqtpxy.supabase.co";
+  const EDIT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjbXlmbW1iZHJ4cWprenF0cHh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcyOTA1OTIsImV4cCI6MjA4Mjg2NjU5Mn0.XxC5ISCfKExN6Yd-WK4x2dAfD9JMnGneC_urbsCow6w";
 
   // Fallbacks (in case user pasted globals without const, or older builds)
   const legacyUrl = (typeof SUPABASE_URL !== "undefined") ? SUPABASE_URL : undefined;
