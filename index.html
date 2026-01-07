@@ -55,6 +55,7 @@
       <div class="row">
         <button class="btn primary" id="btnJoin">Войти / Создать</button>
         <button class="btn" id="btnCopyLink">Скопировать ссылку</button>
+        <button class="btn" id="btnHouseHome" type="button" title="Домовые правила (9, тузы, прикуп)">🐎 Гусары</button>
       </div>
 
       <div class="recent" id="recentWrap" style="display:none;">
@@ -91,7 +92,10 @@
       <section class="card tabPanel" id="tab-rules">
         <div class="panelHead">
           <h2>Правила</h2>
-          <button class="btn tiny" id="btnSources" type="button">Источники</button>
+          <div class="panelHeadActions">
+            <button class="btn tiny" id="btnHouseRules" type="button" title="Домовые правила (9, тузы, прикуп)">🐎 Домовые</button>
+            <button class="btn tiny" id="btnSources" type="button">Источники</button>
+          </div>
         </div>
 
         <div class="agreeBox">
@@ -214,6 +218,17 @@
                 <span>Вкл</span>
               </label>
             </div>
+
+            <div class="ruleRow">
+              <div>
+                <div class="rTitle">Домовые правила 🐎</div>
+                <div class="muted">Сдвиг: 9️⃣ 1/3... штраф −120 • ♦️A 4 туза (+200) • 🔄 2×9 из прикупа (house).</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="optHouseOn" />
+                <span>Вкл</span>
+              </label>
+            </div>
 <div class="note">
               Опции “бочка/880”, “роспись”, “золотой кон” включаются здесь. Если мешают — выключите.
             </div>
@@ -278,6 +293,16 @@
         <div class="row">
           <button class="btn primary" id="btnAddRound">Добавить кон</button>
           <button class="btn danger" id="btnUndo">Отменить последний кон</button>
+          <div class="eventWrap">
+            <button class="btn" id="btnEventMenu" type="button" title="Добавить игровое событие">🎴 Событие</button>
+            <div class="popover" id="eventMenu" style="display:none;">
+              <div class="popoverTitle">Событие в этом коне</div>
+              <button class="btn tiny popItem" type="button" data-ev="bottom9">9️⃣ Нижняя карта: 9</button>
+              <button class="btn tiny popItem" type="button" data-ev="bottomJ">🤵 Валет снизу</button>
+              <button class="btn tiny popItem" type="button" data-ev="fourAces">♦️A 4 туза (+200)</button>
+              <button class="btn tiny popItem" type="button" data-ev="restart2nines">🔄 2×9 из прикупа (house)</button>
+            </div>
+          </div>
         </div>
 
         <div class="note">
@@ -332,6 +357,48 @@
         </div>
         <div class="modalBody">
           <div class="muted" id="eventBody">—</div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- HOUSE RULES MODAL -->
+    <div class="modal" id="modalHouse" style="display:none;">
+      <div class="modalCard">
+        <div class="modalHead">
+          <div class="modalTitle">🐎 Домовые правила</div>
+          <button class="btn tiny" id="btnCloseHouse" type="button">Закрыть</button>
+        </div>
+        <div class="modalBody" id="houseBody">
+          <div class="houseBlock">
+            <div class="houseH">🎴 Нижняя карта и сдвиг</div>
+            <div class="muted">
+              Сдающий смотрит нижнюю карту колоды. Прикуп сдаётся по 3 карты, и последняя карта колоды всегда попадает сдающему (если не сдавать себе прикуп последним).
+              Если нижняя карта — <b>9️⃣</b>, считается “плохой знак”. Если <b>9️⃣</b> выпадает три раза подряд — <b>сдвигавший игрок</b> получает штраф <b>−120</b>.
+              Сдвигает игрок <b>справа от сдающего</b>. Серия идёт как <b>1/3 → 2/3 → 3/3</b>, как у бочки.
+              <div class="muted small" style="margin-top:6px;">🐎 Гусары mode: <b>9️⃣ 2/3 — не к добру, гусары…</b></div>
+            </div>
+          </div>
+
+          <div class="houseBlock">
+            <div class="houseH">🤵 Валет снизу</div>
+            <div class="muted">Если нижняя карта — валет 🤵, это информационное событие. Обычно означает пересдвиг или отмену плохого знака. Серия девяток при этом сбрасывается.</div>
+          </div>
+
+          <div class="houseBlock">
+            <div class="houseH">♦️A Четыре туза</div>
+            <div class="muted">Если у игрока все 4 туза — бонусное событие. Обычно даёт <b>+200</b> очков. Это не отмена кона и не рестарт — просто редкая удача.</div>
+          </div>
+
+          <div class="houseBlock">
+            <div class="houseH">🔄 2×9 из прикупа <span class="muted">(house)</span></div>
+            <div class="muted">Если из прикупа выпали две девятки — можно перезапустить игру. Это не стандарт, используйте только если все согласны.</div>
+          </div>
+
+          <div class="houseBlock">
+            <div class="houseH">🛠 Как это работает в приложении</div>
+            <div class="muted">Все события отмечаются вручную через <b>🎴 Событие</b>. Никакой автоматики. События попадают в историю и отмечаются на графике.</div>
+          </div>
         </div>
       </div>
     </div>

@@ -47,6 +47,18 @@ input, select{
 input::placeholder{color:rgba(159,177,208,.6)}
 .hint{display:block; color:rgba(159,177,208,.8); margin-top:6px; font-size:12px}
 .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px}
+
+/* Event popover */
+.eventWrap{position:relative; display:inline-flex; align-items:center}
+.popover{position:absolute; right:0; top:calc(100% + 8px); min-width:240px; z-index:50;
+  padding:10px; border-radius:14px; background:rgba(20,24,33,.94); border:1px solid rgba(255,255,255,.12);
+  box-shadow:0 10px 30px rgba(0,0,0,.35); backdrop-filter:blur(10px)}
+.popoverTitle{font-weight:800; margin-bottom:8px; color:rgba(232,238,252,.95)}
+.popItem{width:100%; justify-content:flex-start; gap:10px; padding:8px 10px}
+
+/* House rules modal content */
+.houseBlock{padding:10px 10px; border-radius:14px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04); margin:10px 0}
+.houseH{font-weight:800; margin-bottom:6px}
 .btn{
   appearance:none; border:1px solid var(--line); background:rgba(255,255,255,.06); color:var(--text);
   padding:11px 14px; border-radius:14px; cursor:pointer; font-weight:700;
@@ -66,6 +78,7 @@ input::placeholder{color:rgba(159,177,208,.6)}
      border:1px solid var(--line); background:rgba(255,255,255,.03); color:var(--text); cursor:pointer; font-weight:800}
 .tab.active{background:rgba(122,162,255,.22); border-color:rgba(122,162,255,.35)}
 .panelHead{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px}
+.panelHeadActions{display:flex; align-items:center; gap:8px}
 .divider{height:1px; background:var(--line); margin:14px 0}
 .scoreGrid{display:grid; grid-template-columns:repeat(3, 1fr); gap:10px}
 @media(max-width:760px){ .scoreGrid{grid-template-columns:1fr} }

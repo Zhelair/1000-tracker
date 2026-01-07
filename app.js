@@ -12,6 +12,18 @@
   const PLAYER_KEYS = PLAYERS.map(p => p.key);
 const PLAYER_NAMES = Object.fromEntries(PLAYERS.map(p => [p.key, p.label]));
 
+  // Seating helper: fixed clockwise order by PLAYER_KEYS.
+  // "Right of dealer" = previous player in this order.
+  function rightOf(playerKey) {
+    const idx = PLAYER_KEYS.indexOf(playerKey);
+    if (idx < 0) return PLAYER_KEYS[PLAYER_KEYS.length - 1];
+    return PLAYER_KEYS[(idx - 1 + PLAYER_KEYS.length) % PLAYER_KEYS.length];
+  }
+
+  function isGusaryMode() {
+    try { return localStorage.getItem("gusary_mode") === "1"; } catch { return false; }
+  }
+
   const $ = (id) => document.getElementById(id);
 
   // ----- Toast -----
@@ -225,8 +237,19 @@ const PLAYER_NAMES = Object.fromEntries(PLAYERS.map(p => [p.key, p.label]));
   const optBarrelOn = $("optBarrelOn");
   const optRospisOn = $("optRospisOn");
   const optGoldenOn = $("optGoldenOn");
+  const optHouseOn = $("optHouseOn");
   const btnSaveOptions = $("btnSaveOptions");
   const optionsHint = $("optionsHint");
+
+  // House rules UI
+  const btnHouseRules = $("btnHouseRules");
+  const btnHouseHome = $("btnHouseHome");
+  const modalHouse = $("modalHouse");
+  const btnCloseHouse = $("btnCloseHouse");
+
+  // Score events popover
+  const btnEventMenu = $("btnEventMenu");
+  const eventMenu = $("eventMenu");
 
   // Score tab
   const scoreGrid = $("scoreGrid");
@@ -354,6 +377,11 @@ const PLAYER_NAMES = Object.fromEntries(PLAYERS.map(p => [p.key, p.label]));
     modalSources.style.display = open ? "" : "none";
   }
 
+  function openHouse(open) {
+    if (!modalHouse) return;
+    modalHouse.style.display = open ? "" : "none";
+  }
+
   function openWin(open) {
     if (!modalWin) return;
     modalWin.style.display = open ? "" : "none";
@@ -400,7 +428,8 @@ const PLAYER_NAMES = Object.fromEntries(PLAYERS.map(p => [p.key, p.label]));
       rounding: "none",
       bolts_on: false,
       bolts_penalty: 120,
-      samoval_555_on: false };
+      samoval_555_on: false,
+      house_on: true };
     const { data: rows, error } = await sb.from("rules").select("*").eq("room_id", roomId);
     if (error) throw error;
 
@@ -476,6 +505,10 @@ function computeFromRounds(roundRows, rulesObj) {
     const barrelOn = Object.fromEntries(order.map(k => [k, false]));
     const barrelCount = Object.fromEntries(order.map(k => [k, 0]));
 
+    // House: bottom card streak (9️⃣) tracking
+    let bottom9Streak = 0; // 0..3
+    let bottom9CutterKey = null;
+
     // Golden kon tracker (match-level): completed when bidder (заказчик) makes >=120 in a round
     let goldenKonCompleted = false;
     let goldenKonAttempts = 0;
@@ -504,13 +537,86 @@ function computeFromRounds(roundRows, rulesObj) {
         continue;
       }
 
-      if (p.type && p.type !== "score") {
+      const isScore = (p.type === "score" || !p.type);
+      const isHouse = (p.type === "house_event");
+      if (!isScore && !isHouse) {
         // ignore consent / misc events
         continue;
       }
 
-      // Snapshot scores BEFORE applying this round (needed for barrel rule)
+      // Snapshot scores BEFORE applying this row (needed for barrel rule)
       const prevScores = { ...scores };
+
+      // House rules (manual events)
+      const houseOn = variantsOn && !!rulesObj.house_on;
+      const houseEvents = { markers: [], notes: [], meta: {} };
+      if (isHouse && houseOn) {
+        const ev = p.ev || p.event || "";
+        const dealer = p.dealerKey || p.dealer || p.created_by || null;
+        const cutter = p.cutterKey || p.cutter || (dealer ? rightOf(dealer) : null);
+        const target = p.targetKey || p.target || p.created_by || null;
+
+        houseEvents.meta = { ev, dealer, cutter, target };
+
+        houseEvents.meta = { ev, dealer, cutter, target };
+
+        if (ev === "bottom9") {
+          // increment streak per cutter
+          if (cutter && bottom9CutterKey === cutter) bottom9Streak += 1;
+          else { bottom9CutterKey = cutter; bottom9Streak = 1; }
+          const txt = isGusaryMode()
+            ? `9️⃣ ${bottom9Streak}/3 — не к добру, гусары…`
+            : `9️⃣ ${bottom9Streak}/3 — нижняя карта`;
+          houseEvents.markers.push("9️⃣");
+          houseEvents.notes.push(txt);
+
+          if (bottom9Streak >= 3 && cutter) {
+            scores[cutter] = Number(scores[cutter] || 0) - 120;
+            houseEvents.markers.push("💥");
+            houseEvents.notes.push(`💥 3×9️⃣ подряд: ${playerLabel(cutter)} (сдвигал) — штраф −120`);
+            bottom9Streak = 0;
+            bottom9CutterKey = null;
+          }
+        } else if (ev === "bottomJ") {
+          // reset streak
+          bottom9Streak = 0;
+          bottom9CutterKey = null;
+          houseEvents.markers.push("🤵");
+          houseEvents.notes.push(`🤵 Валет снизу: серия 9️⃣ сброшена`);
+        } else if (ev === "fourAces") {
+          if (target) {
+            scores[target] = Number(scores[target] || 0) + 200;
+            houseEvents.markers.push("♦️A");
+            houseEvents.notes.push(`♦️A 4 туза: ${playerLabel(target)} +200`);
+          }
+        } else if (ev === "restart2nines") {
+          houseEvents.markers.push("🔄");
+          houseEvents.notes.push(`🔄 2×9 из прикупа: house-правило (перезапуск по договорённости)`);
+        }
+
+        // Cap to 1000 after house points/penalties
+        for (const k of order) {
+          if (scores[k] > 1000) scores[k] = 1000;
+          if (scores[k] < -9999) scores[k] = scores[k];
+        }
+      }
+
+      // If this row is a house event, we don't apply score logic below.
+      if (isHouse) {
+        const point = { t: r.created_at, banker: scores.banker, risk: scores.risk, calm: scores.calm };
+        if (houseOn && (houseEvents.markers.length || houseEvents.notes.length)) {
+          point.events = point.events || {};
+          point.events.house = { markers: houseEvents.markers, notes: houseEvents.notes };
+        }
+
+        const modalItems = (houseEvents.notes || []).slice();
+        if (modalItems.length) {
+          lastEvents = { id: `events:${r.id || r.created_at}`, title: "События", items: modalItems };
+        }
+
+        series.push(point);
+        continue;
+      }
 
       const bidder = p.bidder;
       const bid = Number(p.bid || 0);
@@ -603,7 +709,6 @@ function computeFromRounds(roundRows, rulesObj) {
             barrelOn[k] = true;
             barrelCount[k] = 1;
             barrelEvents.enter.push({ key: k, count: 1 });
-            barrelEvents.enter.push(k);
           }
         }
 
@@ -876,6 +981,36 @@ function renderScoreCards(computed, rulesObj) {
         historyList.appendChild(item);
         return;
       }
+
+      if (p.type === "house_event") {
+        const item = document.createElement("div");
+        item.className = "hItem";
+        const time = fmtTime(r.created_at);
+        const who = playerLabel(p.created_by || "—");
+        const ev = p.ev || p.event || "";
+        const title = {
+          bottom9: "9️⃣ Нижняя карта: 9",
+          bottomJ: "🤵 Валет снизу",
+          fourAces: "♦️A 4 туза (+200)",
+          restart2nines: "🔄 2×9 из прикупа (house)"
+        }[ev] || "🎴 Событие";
+        const extra = (ev === "fourAces")
+          ? `Игрок: ${playerLabel(p.targetKey || p.target || "—")}`
+          : (ev === "bottom9" ? `Сдавал: ${playerLabel(p.dealerKey || p.dealer || p.created_by || "—")} • Сдвигал: ${playerLabel(p.cutterKey || p.cutter || "—")}` : "—");
+        item.innerHTML = `
+          <div class="hTop">
+            <div>
+              <div class="hWho">${who}</div>
+              <div class="hTime">${time}</div>
+            </div>
+            <div class="badge">${title}</div>
+          </div>
+          <div class="hMain">${title}</div>
+          <div class="hDetails">${extra}</div>
+        `;
+        historyList.appendChild(item);
+        return;
+      }
       const who = playerLabel(p.created_by || "—");
       const time = fmtTime(r.created_at);
       const bidder = playerLabel(p.bidder || "—");
@@ -1015,7 +1150,8 @@ function renderScoreCards(computed, rulesObj) {
       const evBol = all.bolts;
       const evSam = all.samoval;
       const evGold = all.golden;
-      if (!evBar && !evBol && !evSam && !evGold) continue;
+      const evHouse = all.house;
+      if (!evBar && !evBol && !evSam && !evGold && !evHouse) continue;
 
       // draw marker near the affected player's point
       const drawAt = (playerKey, text) => {
@@ -1042,6 +1178,14 @@ function renderScoreCards(computed, rulesObj) {
 
       if (evGold) {
         if (evGold.completed) drawAt(evGold.completed.bidderKey, "✨");
+      }
+
+      if (evHouse) {
+        // house markers are informational; draw near dealer (created_by assumed) or near max score line
+        const markers = (evHouse.markers || []).slice(0, 3);
+        // place them near the highest current score point
+        const bestKey = ["banker","risk","calm"].sort((a,b) => (Number(series[i][b]||0) - Number(series[i][a]||0)))[0];
+        markers.forEach((m, idx) => drawAt(bestKey, m + (idx ? "" : "")));
       }
     }
 
@@ -1094,6 +1238,7 @@ function renderScoreCards(computed, rulesObj) {
     if (optBarrelOn) optBarrelOn.checked = !!rulesObj.barrel_880_on;
     if (optRospisOn) optRospisOn.checked = !!rulesObj.rospis_on;
     if (optGoldenOn) optGoldenOn.checked = !!rulesObj.golden_on;
+    if (optHouseOn) optHouseOn.checked = !!rulesObj.house_on;
 
     variantsBody.style.display = optVariantsOn.checked ? "" : "none";
     const innerEnabled = !!optVariantsOn.checked;
@@ -1103,6 +1248,7 @@ function renderScoreCards(computed, rulesObj) {
     if (optBarrelOn) optBarrelOn.disabled = !innerEnabled;
     if (optRospisOn) optRospisOn.disabled = !innerEnabled;
     if (optGoldenOn) optGoldenOn.disabled = !innerEnabled;
+    if (optHouseOn) optHouseOn.disabled = !innerEnabled;
   }
 
   async function saveOptions() {
@@ -1116,10 +1262,11 @@ function renderScoreCards(computed, rulesObj) {
       barrel_880_on: !!(optBarrelOn && optBarrelOn.checked),
       rospis_on: !!(optRospisOn && optRospisOn.checked),
       golden_on: !!(optGoldenOn && optGoldenOn.checked),
+      house_on: !!(optHouseOn && optHouseOn.checked),
       match_id: oldObj.match_id || "default",
     };
 
-    const keys = ["variants_on","bolts_on","bolts_penalty","samoval_555_on","barrel_880_on","rospis_on","golden_on"];
+    const keys = ["variants_on","bolts_on","bolts_penalty","samoval_555_on","barrel_880_on","rospis_on","golden_on","house_on"];
     const changed = keys.some(k => JSON.stringify(oldObj[k]) !== JSON.stringify(newObj[k]));
 
     const roundsInMatch = (state.rounds || []).filter(r => (r.payload?.match_id || "default") === (oldObj.match_id || "default") && r.payload?.type !== "new_match");
@@ -1142,6 +1289,7 @@ function renderScoreCards(computed, rulesObj) {
       ["barrel_880_on", newObj.barrel_880_on],
       ["rospis_on", newObj.rospis_on],
       ["golden_on", newObj.golden_on],
+      ["house_on", newObj.house_on],
       ["match_id", newObj.match_id],
     ];
     for (const [k,v] of payloads) {
@@ -1239,6 +1387,11 @@ function renderScoreCards(computed, rulesObj) {
 
       const canPlay = !gameLocked;
       [btnAddRound, btnUndo].forEach(b => b.disabled = !canPlay);
+
+      if (btnEventMenu) {
+        const houseEnabled = !!(rulesObj.variants_on && rulesObj.house_on);
+        btnEventMenu.disabled = !canPlay || !houseEnabled;
+      }
 
       [fBidder, fBid, fMade, fRospis, fGolden].forEach(el => { if (el) el.disabled = !canPlay; });
       for (const p of ["banker","risk","calm"]) {
@@ -1397,6 +1550,44 @@ function renderScoreCards(computed, rulesObj) {
     }
   }
 
+  async function addHouseEvent(evKey) {
+    try {
+      if (!room) return;
+      if (gameLocked) { showToast("Игра окончена — начните новую"); return; }
+
+      if (!(currentRulesObj && currentRulesObj.variants_on && currentRulesObj.house_on)) {
+        alert("Домовые правила выключены. Включите их в: Правила → Варианты → Домовые правила 🐎");
+        return;
+      }
+
+      const match_id = (currentRulesObj && currentRulesObj.match_id) ? currentRulesObj.match_id : "default";
+      const payload = {
+        type: "house_event",
+        created_by: me,
+        match_id,
+        ev: evKey,
+        dealerKey: me,
+        cutterKey: rightOf(me),
+        // for 4 aces, default to current bidder (quick & no extra UI)
+        targetKey: (evKey === "fourAces" ? (fBidder?.value || me) : me),
+      };
+
+      const { error } = await sb.from("rounds").insert({ room_id: room.id, payload });
+      if (error) throw error;
+
+      showToast("Событие добавлено ✅");
+      refresh();
+
+      if (evKey === "restart2nines") {
+        // house: event is logged, then we start a new match
+        await resetGame("House: 2×9 из прикупа (перезапуск)");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Не удалось добавить событие. Проверь Supabase/RLS.\n\n" + (e?.message || e));
+    }
+  }
+
   async function undoLast() {
     const { data: last, error } = await sb.from("rounds").select("id").eq("room_id", room.id).order("created_at", { ascending: false }).limit(1);
     if (error) throw error;
@@ -1494,6 +1685,43 @@ function renderScoreCards(computed, rulesObj) {
   btnSources.onclick = () => openSources(true);
   btnCloseSources.onclick = () => openSources(false);
   modalSources.onclick = (e) => { if (e.target === modalSources) openSources(false); };
+
+  // House rules modal
+  btnHouseRules && (btnHouseRules.onclick = () => openHouse(true));
+  btnHouseHome && (btnHouseHome.onclick = () => openHouse(true));
+  btnCloseHouse && (btnCloseHouse.onclick = () => openHouse(false));
+  modalHouse && (modalHouse.onclick = (e) => { if (e.target === modalHouse) openHouse(false); });
+
+  // Score: event popover
+  function closeEventMenu() {
+    if (eventMenu) eventMenu.style.display = "none";
+  }
+  btnEventMenu && (btnEventMenu.onclick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!eventMenu) return;
+    eventMenu.style.display = (eventMenu.style.display === "none" || !eventMenu.style.display) ? "" : "none";
+  });
+
+  // Event menu items
+  if (eventMenu) {
+    eventMenu.querySelectorAll(".popItem").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const ev = btn.getAttribute("data-ev") || "";
+        closeEventMenu();
+        if (!ev) return;
+        await addHouseEvent(ev);
+      });
+    });
+  }
+
+  document.addEventListener("click", (e) => {
+    if (!eventMenu) return;
+    if (eventMenu.style.display === "none" || !eventMenu.style.display) return;
+    // click outside closes
+    const wrap = eventMenu.closest(".eventWrap");
+    if (wrap && !wrap.contains(e.target)) closeEventMenu();
+  });
 
   optVariantsOn.onchange = () => { variantsBody.style.display = optVariantsOn.checked ? "" : "none"; };
   btnSaveOptions.onclick = async () => {
