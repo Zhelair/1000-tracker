@@ -908,10 +908,16 @@ function computeFromRounds(roundRows, rulesObj) {
 
     agreeGrid.appendChild(actions);
 
+
     const agreedCount = agreedSet.size;
-    optionsHint.textContent = agreedCount >= 3
-      ? "Все согласны ✅ Если изменить варианты — начнётся новая партия."
-      : "Нажмите “Я согласен” каждый на своём устройстве. Изменение вариантов начнёт новую партию.";
+    const hint = document.createElement("div");
+    hint.className = "muted small";
+    hint.style.marginTop = "10px";
+    hint.textContent = (agreedCount >= 3)
+      ? "Согласие 3/3 — играем."
+      : "Нажмите “Я согласен” каждый на своём устройстве (или включите 🐴🎺 “Гусары”).";
+    agreeGrid.appendChild(hint);
+
   }
 
 function renderScoreCards(computed, rulesObj) {
