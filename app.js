@@ -292,6 +292,9 @@ const PLAYER_NAMES = Object.fromEntries(PLAYERS.map(p => [p.key, p.label]));
   let winShownMatchId = null;
   let lastEventShownId = null;
 
+  // House events: target selected in 🎴 panel (who the event belongs to)
+  let eventTargetKey = null;
+
   const RECENT_KEY = "tt_recent_rooms_v1";
 
   function setStatus(text) {
@@ -552,28 +555,24 @@ function computeFromRounds(roundRows, rulesObj) {
       const houseEvents = { markers: [], notes: [], meta: {} };
       if (isHouse && houseOn) {
         const ev = p.ev || p.event || "";
-        const dealer = p.dealerKey || p.dealer || p.created_by || null;
-        const cutter = p.cutterKey || p.cutter || (dealer ? rightOf(dealer) : null);
+        // targetKey binds the event to a specific person (who gets the effect OR who triggered it)
         const target = p.targetKey || p.target || p.created_by || null;
-
-        houseEvents.meta = { ev, dealer, cutter, target };
-
-        houseEvents.meta = { ev, dealer, cutter, target };
+        houseEvents.meta = { ev, target };
 
         if (ev === "bottom9") {
-          // increment streak per cutter
-          if (cutter && bottom9CutterKey === cutter) bottom9Streak += 1;
-          else { bottom9CutterKey = cutter; bottom9Streak = 1; }
+          // increment streak per selected target ("кто сдвигал")
+          if (target && bottom9CutterKey === target) bottom9Streak += 1;
+          else { bottom9CutterKey = target; bottom9Streak = 1; }
           const txt = isGusaryMode()
             ? `9️⃣ ${bottom9Streak}/3 — не к добру, гусары…`
             : `9️⃣ ${bottom9Streak}/3 — нижняя карта`;
           houseEvents.markers.push("9️⃣");
-          houseEvents.notes.push(txt);
+          houseEvents.notes.push(target ? `${txt} — ${playerLabel(target)}` : txt);
 
-          if (bottom9Streak >= 3 && cutter) {
-            scores[cutter] = Number(scores[cutter] || 0) - 120;
+          if (bottom9Streak >= 3 && target) {
+            scores[target] = Number(scores[target] || 0) - 120;
             houseEvents.markers.push("💥");
-            houseEvents.notes.push(`💥 3×9️⃣ подряд: ${playerLabel(cutter)} (сдвигал) — штраф −120`);
+            houseEvents.notes.push(`💥 3×9️⃣ подряд: ${playerLabel(target)} — штраф −120`);
             bottom9Streak = 0;
             bottom9CutterKey = null;
           }
@@ -582,7 +581,7 @@ function computeFromRounds(roundRows, rulesObj) {
           bottom9Streak = 0;
           bottom9CutterKey = null;
           houseEvents.markers.push("🤵");
-          houseEvents.notes.push(`🤵 Валет снизу: серия 9️⃣ сброшена`);
+          houseEvents.notes.push(target ? `🤵 Валет снизу: серия 9️⃣ сброшена — ${playerLabel(target)}` : `🤵 Валет снизу: серия 9️⃣ сброшена`);
         } else if (ev === "fourAces") {
           if (target) {
             scores[target] = Number(scores[target] || 0) + 200;
@@ -591,7 +590,9 @@ function computeFromRounds(roundRows, rulesObj) {
           }
         } else if (ev === "restart2nines") {
           houseEvents.markers.push("🔄");
-          houseEvents.notes.push(`🔄 2×9 из прикупа: house-правило (перезапуск по договорённости)`);
+          houseEvents.notes.push(target
+            ? `🔄 2×9 из прикупа: рестарт партии (инициатор: ${playerLabel(target)})`
+            : `🔄 2×9 из прикупа: рестарт партии`);
         }
 
         // Cap to 1000 after house points/penalties
@@ -606,7 +607,7 @@ function computeFromRounds(roundRows, rulesObj) {
         const point = { t: r.created_at, banker: scores.banker, risk: scores.risk, calm: scores.calm };
         if (houseOn && (houseEvents.markers.length || houseEvents.notes.length)) {
           point.events = point.events || {};
-          point.events.house = { markers: houseEvents.markers, notes: houseEvents.notes };
+          point.events.house = { markers: houseEvents.markers, notes: houseEvents.notes, targetKey: houseEvents.meta.target || null };
         }
 
         const modalItems = (houseEvents.notes || []).slice();
@@ -994,9 +995,10 @@ function renderScoreCards(computed, rulesObj) {
           fourAces: "♦️A 4 туза (+200)",
           restart2nines: "🔄 2×9 из прикупа (house)"
         }[ev] || "🎴 Событие";
-        const extra = (ev === "fourAces")
-          ? `Игрок: ${playerLabel(p.targetKey || p.target || "—")}`
-          : (ev === "bottom9" ? `Сдавал: ${playerLabel(p.dealerKey || p.dealer || p.created_by || "—")} • Сдвигал: ${playerLabel(p.cutterKey || p.cutter || "—")}` : "—");
+        const t = playerLabel(p.targetKey || p.target || "—");
+        const extra = (ev === "restart2nines")
+          ? `Инициатор: ${t}`
+          : `Кому: ${t}`;
         item.innerHTML = `
           <div class="hTop">
             <div>
@@ -1181,11 +1183,11 @@ function renderScoreCards(computed, rulesObj) {
       }
 
       if (evHouse) {
-        // house markers are informational; draw near dealer (created_by assumed) or near max score line
+        // house markers must be tied to a concrete person
         const markers = (evHouse.markers || []).slice(0, 3);
-        // place them near the highest current score point
-        const bestKey = ["banker","risk","calm"].sort((a,b) => (Number(series[i][b]||0) - Number(series[i][a]||0)))[0];
-        markers.forEach((m, idx) => drawAt(bestKey, m + (idx ? "" : "")));
+        const tk = evHouse.targetKey || null;
+        const placeKey = (tk && ["banker","risk","calm"].includes(tk)) ? tk : ["banker","risk","calm"].sort((a,b) => (Number(series[i][b]||0) - Number(series[i][a]||0)))[0];
+        markers.forEach((m, idx) => drawAt(placeKey, m));
       }
     }
 
@@ -1550,7 +1552,7 @@ function renderScoreCards(computed, rulesObj) {
     }
   }
 
-  async function addHouseEvent(evKey) {
+  async function addHouseEvent(evKey, targetKey) {
     try {
       if (!room) return;
       if (gameLocked) { showToast("Игра окончена — начните новую"); return; }
@@ -1566,10 +1568,8 @@ function renderScoreCards(computed, rulesObj) {
         created_by: me,
         match_id,
         ev: evKey,
-        dealerKey: me,
-        cutterKey: rightOf(me),
-        // for 4 aces, default to current bidder (quick & no extra UI)
-        targetKey: (evKey === "fourAces" ? (fBidder?.value || me) : me),
+        // "targetKey" binds the event to a concrete person (who gets points/penalty or who triggered it)
+        targetKey: (targetKey || fBidder?.value || me),
       };
 
       const { error } = await sb.from("rounds").insert({ room_id: room.id, payload });
@@ -1700,17 +1700,44 @@ function renderScoreCards(computed, rulesObj) {
     e.preventDefault();
     e.stopPropagation();
     if (!eventMenu) return;
+    // Default target: current bidder (заказчик). Falls back to "me".
+    eventTargetKey = (fBidder?.value || me || "banker");
+    // Update chip UI
+    try {
+      eventMenu.querySelectorAll(".popTarget").forEach(b => {
+        const k = b.getAttribute("data-target");
+        const on = (k && k === eventTargetKey);
+        b.classList.toggle("active", on);
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+    } catch {}
     eventMenu.style.display = (eventMenu.style.display === "none" || !eventMenu.style.display) ? "" : "none";
   });
 
   // Event menu items
   if (eventMenu) {
+    // Target chips
+    eventMenu.querySelectorAll(".popTarget").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const k = btn.getAttribute("data-target");
+        if (!k) return;
+        eventTargetKey = k;
+        eventMenu.querySelectorAll(".popTarget").forEach(b => {
+          const kk = b.getAttribute("data-target");
+          const on = (kk && kk === eventTargetKey);
+          b.classList.toggle("active", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+      });
+    });
+
     eventMenu.querySelectorAll(".popItem").forEach(btn => {
       btn.addEventListener("click", async () => {
         const ev = btn.getAttribute("data-ev") || "";
         closeEventMenu();
         if (!ev) return;
-        await addHouseEvent(ev);
+        await addHouseEvent(ev, eventTargetKey || (fBidder?.value || me));
       });
     });
   }

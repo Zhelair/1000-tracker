@@ -297,6 +297,14 @@
             <button class="btn" id="btnEventMenu" type="button" title="Добавить игровое событие">🎴 Событие</button>
             <div class="popover" id="eventMenu" style="display:none;">
               <div class="popoverTitle">Событие в этом коне</div>
+              <div class="popTargets" aria-label="Кому применяется событие">
+                <div class="muted small" style="margin-bottom:6px;">Кому:</div>
+                <div class="row" style="gap:6px; flex-wrap:wrap;">
+                  <button class="btn tiny chip popTarget" type="button" data-target="banker">Банкир</button>
+                  <button class="btn tiny chip popTarget" type="button" data-target="risk">Рисковый</button>
+                  <button class="btn tiny chip popTarget" type="button" data-target="calm">Невозмутимый</button>
+                </div>
+              </div>
               <button class="btn tiny popItem" type="button" data-ev="bottom9">9️⃣ Нижняя карта: 9</button>
               <button class="btn tiny popItem" type="button" data-ev="bottomJ">🤵 Валет снизу</button>
               <button class="btn tiny popItem" type="button" data-ev="fourAces">♦️A 4 туза (+200)</button>

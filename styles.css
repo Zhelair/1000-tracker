@@ -107,6 +107,8 @@ input::placeholder{color:rgba(159,177,208,.6)}
 .cheatH{font-weight:900; margin-bottom:6px}
 .chips{display:flex; flex-wrap:wrap; gap:8px}
 .chip{padding:8px 10px; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,.03); font-weight:800; font-size:13px}
+.chip.active, .chip[aria-pressed="true"]{background:rgba(122,162,255,.18); border-color:rgba(122,162,255,.45)}
+.popTargets{padding:8px 8px 10px; margin:8px 0 10px; border:1px dashed rgba(255,255,255,.14); border-radius:12px; background:rgba(15,23,42,.18)}
 .variants{border:1px solid var(--line); border-radius:18px; padding:12px; background:rgba(255,255,255,.02)}
 .variantsHead{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px}
 .toggle{display:flex; gap:8px; align-items:center; color:var(--muted); font-weight:800}
