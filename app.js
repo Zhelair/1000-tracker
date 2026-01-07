@@ -120,8 +120,36 @@ const PLAYER_NAMES = Object.fromEntries(PLAYERS.map(p => [p.key, p.label]));
   }
   preloadSfx();
 
+  // Autoplay policies: sounds may not play until we "unlock" audio with a user gesture.
+  // We do it once on first pointer interaction.
+  let audioUnlocked = false;
+  function unlockAudioOnce() {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    try {
+      for (const a of Object.values(SFX)) {
+        if (!a) continue;
+        // Try a tiny play/pause to unlock (best-effort).
+        a.muted = true;
+        const p = a.play();
+        if (p && typeof p.then === "function") {
+          p.then(() => {
+            try { a.pause(); a.currentTime = 0; a.muted = false; } catch (_) {}
+          }).catch(() => {
+            try { a.muted = false; } catch (_) {}
+          });
+        } else {
+          try { a.pause(); a.currentTime = 0; a.muted = false; } catch (_) {}
+        }
+      }
+    } catch (_) {}
+  }
+  window.addEventListener("pointerdown", unlockAudioOnce, { once: true });
+
   function playSfx(key) {
     if (!soundEnabled) return;
+    // If user never interacted yet, try to unlock quietly.
+    unlockAudioOnce();
     const a = SFX[key];
     if (!a) return;
     try {
@@ -1480,6 +1508,15 @@ function renderScoreCards(computed, rulesObj) {
     try {
       if (!room) return;
       if (gameLocked) { showToast("Игра окончена — начните новую"); return; }
+
+      // Play SFX immediately (while we still have a user gesture).
+      // If the DB insert fails, it's still fine — sound is harmless.
+      try {
+        if (evKey === "bottom9") playSfx("barrelTick");
+        else if (evKey === "bottomJ") playSfx("gusary");
+        else if (evKey === "aces4") playSfx("golden");
+        else if (evKey === "restart2nines") playSfx("samoval");
+      } catch (_) {}
 
       const match_id = (currentRulesObj && currentRulesObj.match_id) ? currentRulesObj.match_id : "default";
       const payload = {
