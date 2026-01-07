@@ -591,8 +591,8 @@ function computeFromRounds(roundRows, rulesObj) {
         } else if (ev === "restart2nines") {
           houseEvents.markers.push("🔄");
           houseEvents.notes.push(target
-            ? `🔄 2×9 из прикупа: рестарт партии (инициатор: ${playerLabel(target)})`
-            : `🔄 2×9 из прикупа: рестарт партии`);
+            ? `🔄 2×9 из прикупа: перезапуск кона (инициатор: ${playerLabel(target)})`
+            : `🔄 2×9 из прикупа: перезапуск кона`);
         }
 
         // Cap to 1000 after house points/penalties
@@ -1579,8 +1579,18 @@ function renderScoreCards(computed, rulesObj) {
       refresh();
 
       if (evKey === "restart2nines") {
-        // house: event is logged, then we start a new match
-        await resetGame("House: 2×9 из прикупа (перезапуск)");
+        // house: event is logged; we restart ONLY the current round (no full game reset)
+        // Clear inputs so players can re-enter the hand.
+        if (fBid) fBid.value = "";
+        if (fRospis) fRospis.checked = false;
+        if (fGolden) fGolden.checked = false;
+        for (const p of ["banker","risk","calm"]) {
+          const pt = $("pt_" + p);
+          const bl = $("bolt_" + p);
+          if (pt) pt.value = "0";
+          if (bl) bl.checked = false;
+        }
+        showToast("🔄 2×9: кон переигрываем");
       }
     } catch (e) {
       console.error(e);
