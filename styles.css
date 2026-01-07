@@ -168,3 +168,21 @@ input::placeholder{color:rgba(159,177,208,.6)}
   background:rgba(255,255,255,.02);
 }
 .small{font-size:12px}
+
+
+/* Mobile: event menu becomes a bottom sheet */
+@media (max-width: 720px) {
+  .eventWrap { position: static; }
+  .popover {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 16px;
+    top: auto;
+    min-width: 0;
+    max-width: calc(100vw - 24px);
+    max-height: 55vh;
+    overflow: auto;
+    z-index: 9999;
+  }
+}

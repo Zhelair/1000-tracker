@@ -226,20 +226,19 @@ const PLAYER_NAMES = Object.fromEntries(PLAYERS.map(p => [p.key, p.label]));
   const btnSources = $("btnSources");
   const modalSources = $("modalSources");
   const btnCloseSources = $("btnCloseSources");
-
-  const optVariantsOn = $("optVariantsOn");
-  const variantsBody = $("variantsBody");
-  // Rounding was removed (peace mode): users enter final scores manually.
+  // Options are fixed for this build (no UI toggles)
+  const optVariantsOn = null;
+  const variantsBody = null;
   const optRounding = null;
-  const optBoltsOn = $("optBoltsOn");
-  const optBoltsPenalty = $("optBoltsPenalty");
-  const opt555On = $("opt555On");
-  const optBarrelOn = $("optBarrelOn");
-  const optRospisOn = $("optRospisOn");
-  const optGoldenOn = $("optGoldenOn");
-  const optHouseOn = $("optHouseOn");
-  const btnSaveOptions = $("btnSaveOptions");
-  const optionsHint = $("optionsHint");
+  const optBoltsOn = null;
+  const optBoltsPenalty = null;
+  const opt555On = null;
+  const optBarrelOn = null;
+  const optRospisOn = null;
+  const optGoldenOn = null;
+  const optHouseOn = null;
+  const btnSaveOptions = null;
+  const optionsHint = null;
 
   // House rules UI
   const btnHouseRules = $("btnHouseRules");
@@ -396,14 +395,7 @@ const PLAYER_NAMES = Object.fromEntries(PLAYERS.map(p => [p.key, p.label]));
     modalEvent.style.display = open ? "" : "none";
   }
 
-  function setOptionsEnabled(enabled) {
-    // enabled = can edit (not locked)
-    [optVariantsOn, optBoltsOn, optBoltsPenalty, opt555On, btnSaveOptions]
-      .filter(Boolean)
-      .forEach(el => { el.disabled = !enabled; });
-    optionsHint.textContent = enabled ? "После 3х “Согласен ✅” настройки блокируются." : "Настройки заблокированы (правила согласованы).";
-    variantsBody.style.opacity = optVariantsOn.checked ? "1" : ".55";
-  }
+  function setOptionsEnabled(enabled) { /* options removed */ }
 
   // ----- DB helpers -----
   async function getOrCreateRoom(code) {
@@ -428,11 +420,15 @@ const PLAYER_NAMES = Object.fromEntries(PLAYERS.map(p => [p.key, p.label]));
   async function ensureRules(roomId) {
     const defaults = {
       variants_on: true,
-      rounding: "none",
-      bolts_on: false,
+      rounding: 'none',
+      bolts_on: true,
       bolts_penalty: 120,
       samoval_555_on: false,
-      house_on: true };
+      barrel_880_on: true,
+      rospis_on: true,
+      golden_on: true,
+      house_on: true,
+    };
     const { data: rows, error } = await sb.from("rules").select("*").eq("room_id", roomId);
     if (error) throw error;
 
@@ -469,17 +465,21 @@ const PLAYER_NAMES = Object.fromEntries(PLAYERS.map(p => [p.key, p.label]));
 
   function rulesToObj(rulesRows) {
     const o = {};
-    for (const r of rulesRows) o[r.rule_key] = r.value;
-    // Ensure types
-    o.variants_on = !!o.variants_on;
-    o.bolts_on = !!o.bolts_on;
-    o.samoval_555_on = !!o.samoval_555_on;
-    o.bolts_penalty = Number(o.bolts_penalty || 120);
-    o.rounding = o.rounding || "none";
-    o.barrel_880_on = !!o.barrel_880_on;
-    o.rospis_on = !!o.rospis_on;
-    o.golden_on = !!o.golden_on;
-    o.match_id = (o.match_id && String(o.match_id)) || "default";
+    for (const r of (rulesRows || [])) o[r.rule_key] = r.value;
+
+    // Fixed family rules — no toggles in the UI
+    o.variants_on = true;
+    o.bolts_on = true;
+    o.bolts_penalty = 120;
+    o.samoval_555_on = false;
+    o.rounding = 'none';
+    o.barrel_880_on = true;
+    o.rospis_on = true;
+    o.golden_on = true;
+    o.house_on = true;
+
+    // Keep match id if it exists
+    o.match_id = (o.match_id && String(o.match_id)) || 'default';
     return o;
   }
 
@@ -1232,74 +1232,9 @@ function renderScoreCards(computed, rulesObj) {
     }
   }
 
-  function renderOptions(rulesObj) {
-    optVariantsOn.checked = !!rulesObj.variants_on;
-    optBoltsOn.checked = !!rulesObj.bolts_on;
-    optBoltsPenalty.value = Number(rulesObj.bolts_penalty || 120);
-    opt555On.checked = !!rulesObj.samoval_555_on;
-    if (optBarrelOn) optBarrelOn.checked = !!rulesObj.barrel_880_on;
-    if (optRospisOn) optRospisOn.checked = !!rulesObj.rospis_on;
-    if (optGoldenOn) optGoldenOn.checked = !!rulesObj.golden_on;
-    if (optHouseOn) optHouseOn.checked = !!rulesObj.house_on;
+  function renderOptions(_rulesObj) { /* fixed rules; nothing to render */ }
 
-    variantsBody.style.display = optVariantsOn.checked ? "" : "none";
-    const innerEnabled = !!optVariantsOn.checked;
-    optBoltsOn.disabled = !innerEnabled;
-    optBoltsPenalty.disabled = !innerEnabled || !optBoltsOn.checked;
-    opt555On.disabled = !innerEnabled;
-    if (optBarrelOn) optBarrelOn.disabled = !innerEnabled;
-    if (optRospisOn) optRospisOn.disabled = !innerEnabled;
-    if (optGoldenOn) optGoldenOn.disabled = !innerEnabled;
-    if (optHouseOn) optHouseOn.disabled = !innerEnabled;
-  }
-
-  async function saveOptions() {
-    const state = await fetchRoomState(room.id);
-    const oldObj = rulesToObj(state.rules);
-    const newObj = {
-      variants_on: !!optVariantsOn.checked,
-      bolts_on: !!optBoltsOn.checked,
-      bolts_penalty: Number(optBoltsPenalty.value || 120),
-      samoval_555_on: !!opt555On.checked,
-      barrel_880_on: !!(optBarrelOn && optBarrelOn.checked),
-      rospis_on: !!(optRospisOn && optRospisOn.checked),
-      golden_on: !!(optGoldenOn && optGoldenOn.checked),
-      house_on: !!(optHouseOn && optHouseOn.checked),
-      match_id: oldObj.match_id || "default",
-    };
-
-    const keys = ["variants_on","bolts_on","bolts_penalty","samoval_555_on","barrel_880_on","rospis_on","golden_on","house_on"];
-    const changed = keys.some(k => JSON.stringify(oldObj[k]) !== JSON.stringify(newObj[k]));
-
-    const roundsInMatch = (state.rounds || []).filter(r => (r.payload?.match_id || "default") === (oldObj.match_id || "default") && r.payload?.type !== "new_match");
-    if (changed && roundsInMatch.length > 0) {
-      const ok = confirm("Изменение вариантов начнёт новую партию (счёт пойдёт с нуля, старая история сохранится). Продолжить?");
-      if (!ok) return;
-
-      const newMatchId = (globalThis.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
-      newObj.match_id = newMatchId;
-      await sb.from("rounds").insert({
-        room_id: room.id,
-        payload: { type: "new_match", match_id: newMatchId, by: playerLabel(me), note: "Новая партия: изменены варианты", at: new Date().toISOString() } });
-    }
-
-    const payloads = [
-      ["variants_on", newObj.variants_on],
-      ["bolts_on", newObj.bolts_on],
-      ["bolts_penalty", newObj.bolts_penalty],
-      ["samoval_555_on", newObj.samoval_555_on],
-      ["barrel_880_on", newObj.barrel_880_on],
-      ["rospis_on", newObj.rospis_on],
-      ["golden_on", newObj.golden_on],
-      ["house_on", newObj.house_on],
-      ["match_id", newObj.match_id],
-    ];
-    for (const [k,v] of payloads) {
-      await sb.from("rules").upsert({ room_id: room.id, rule_key: k, value: v }, { onConflict: "room_id,rule_key" });
-    }
-
-    showToast("Варианты сохранены ✅");
-  }
+  async function saveOptions() { /* removed */ }
 
   async function recomputeAndPersist(state) {
     const rulesObj = rulesToObj(state.rules);
@@ -1361,7 +1296,6 @@ function renderScoreCards(computed, rulesObj) {
       const agreedCount = agreedSet.size;
       lockLabel.textContent = `Согласие: ${agreedCount}/3`;
       renderAgree(state, rulesObj);
-      renderOptions(rulesObj);
       renderScoreCards(computed, rulesObj);
       // Golden kon status (match-level)
       if (goldenHint) {
@@ -1391,8 +1325,7 @@ function renderScoreCards(computed, rulesObj) {
       [btnAddRound, btnUndo].forEach(b => b.disabled = !canPlay);
 
       if (btnEventMenu) {
-        const houseEnabled = !!(rulesObj.variants_on && rulesObj.house_on);
-        btnEventMenu.disabled = !canPlay || !houseEnabled;
+        btnEventMenu.disabled = !canPlay;
       }
 
       [fBidder, fBid, fMade, fRospis, fGolden].forEach(el => { if (el) el.disabled = !canPlay; });
@@ -1423,9 +1356,6 @@ function renderScoreCards(computed, rulesObj) {
           openEvent(true);
         }
       }
-
-      // keep variants body visible
-      variantsBody.style.display = optVariantsOn.checked ? "" : "none";
       setLiveHint();
     } catch (e) {
       console.error(e);
@@ -1496,18 +1426,6 @@ function renderScoreCards(computed, rulesObj) {
       const made = fMade.value === "made";
 
 
-      const wantRospis = !!(fRospis && fRospis.checked);
-      const wantGolden = !!(fGolden && fGolden.checked);
-      if (wantRospis && !(currentRulesObj && currentRulesObj.variants_on && currentRulesObj.rospis_on)) {
-        alert("Роспись выключена в вариантах. Включите её в “Правила → Варианты”.");
-        return;
-      }
-      if (wantGolden && !(currentRulesObj && currentRulesObj.variants_on && currentRulesObj.golden_on)) {
-        alert("“Золотой кон” выключен в вариантах. Включите его в “Правила → Варианты”.");
-        return;
-      }
-
-
       const points = {};
       for (const p of ["banker","risk","calm"]) {
         const el = $("pt_" + p);
@@ -1556,11 +1474,6 @@ function renderScoreCards(computed, rulesObj) {
     try {
       if (!room) return;
       if (gameLocked) { showToast("Игра окончена — начните новую"); return; }
-
-      if (!(currentRulesObj && currentRulesObj.variants_on && currentRulesObj.house_on)) {
-        alert("Домовые правила выключены. Включите их в: Правила → Варианты → Домовые правила 🐎");
-        return;
-      }
 
       const match_id = (currentRulesObj && currentRulesObj.match_id) ? currentRulesObj.match_id : "default";
       const payload = {
@@ -1759,23 +1672,6 @@ function renderScoreCards(computed, rulesObj) {
     const wrap = eventMenu.closest(".eventWrap");
     if (wrap && !wrap.contains(e.target)) closeEventMenu();
   });
-
-  optVariantsOn.onchange = () => { variantsBody.style.display = optVariantsOn.checked ? "" : "none"; };
-  btnSaveOptions.onclick = async () => {
-    if (!room) return;
-    const state = await fetchState(room.id);
-    // soft consent: never blocks saving; changing options may start a new match
-
-    try {
-      await saveOptions();
-      await refresh();
-      alert("Сохранено ✅");
-    } catch (e) {
-      console.error(e);
-      alert("Не удалось сохранить варианты. Проверь RLS.");
-    }
-  };
-
   btnAddRound.onclick = async () => {
     if (!room) return;
     try {
